@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Build Your AI Governance Pack — Rostroo</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container nav">
+    <a href="index.html" class="brand">
+      <img src="assets/favicon.svg" alt="Rostroo" />
+      Rostroo
+    </a>
+    <nav class="links"></nav>
+    <a href="index.html" class="btn btn-ghost btn-sm">Cancel</a>
+  </div>
+</header>
+
+<div class="wizard-wrap">
+  <div class="wizard-progress">
+    <span class="step-dot done" data-step-dot="1"></span>
+    <span class="step-dot" data-step-dot="2"></span>
+    <span class="step-dot" data-step-dot="3"></span>
+    <span class="step-dot" data-step-dot="4"></span>
+    <span class="step-dot" data-step-dot="5"></span>
+  </div>
+
+  <div class="wizard-card">
+
+    <!-- Step 1: Company -->
+    <div class="wizard-step" data-step="1">
+      <h2>About your company</h2>
+      <p class="step-sub">Step 1 of 5 — takes about 2 minutes</p>
+      <div class="w-row">
+        <div class="w-field">
+          <label for="companyName">Company name</label>
+          <input type="text" id="companyName" required />
+        </div>
+        <div class="w-field">
+          <label for="contactEmail">Work email (your pack is delivered here too)</label>
+          <input type="email" id="contactEmail" required />
+        </div>
+      </div>
+      <div class="w-row">
+        <div class="w-field">
+          <label for="sector">Sector / industry</label>
+          <select id="sector">
+            <option value="saas">General SaaS / technology</option>
+            <option value="fintech">Financial services / fintech</option>
+            <option value="healthcare">Healthcare / health tech</option>
+            <option value="hr">Hiring / HR tech / recruitment</option>
+            <option value="insurance">Insurance</option>
+            <option value="education">Education</option>
+            <option value="public">Government / public sector / law enforcement</option>
+            <option value="infrastructure">Critical infrastructure / industrial</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="w-field">
+          <label for="companySize">Company size</label>
+          <select id="companySize">
+            <option value="1-10">1–10 employees</option>
+            <option value="11-50">11–50 employees</option>
+            <option value="51-200">51–200 employees</option>
+            <option value="201-500">201–500 employees</option>
+            <option value="500+">500+ employees</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Use cases -->
+    <div class="wizard-step hidden" data-step="2">
+      <h2>How do you use AI today?</h2>
+      <p class="step-sub">Step 2 of 5 — select all that apply</p>
+      <div class="w-field">
+        <label>AI use cases</label>
+        <div class="checkbox-grid">
+          <label class="checkbox-item"><input type="checkbox" value="Customer support / chatbots" class="usecase" /> Customer support / chatbots</label>
+          <label class="checkbox-item"><input type="checkbox" value="Content / marketing generation" class="usecase" /> Content / marketing generation</label>
+          <label class="checkbox-item"><input type="checkbox" value="Hiring / resume screening" class="usecase" /> Hiring / resume screening</label>
+          <label class="checkbox-item"><input type="checkbox" value="Credit / lending / insurance decisions" class="usecase" /> Credit / lending / insurance decisions</label>
+          <label class="checkbox-item"><input type="checkbox" value="Fraud detection" class="usecase" /> Fraud detection</label>
+          <label class="checkbox-item"><input type="checkbox" value="Code generation / dev tools" class="usecase" /> Code generation / dev tools</label>
+          <label class="checkbox-item"><input type="checkbox" value="Internal analytics / BI" class="usecase" /> Internal analytics / BI</label>
+          <label class="checkbox-item"><input type="checkbox" value="Customer-facing recommendations" class="usecase" /> Customer-facing recommendations</label>
+          <label class="checkbox-item"><input type="checkbox" value="Biometric / emotion recognition" class="usecase" /> Biometric / emotion recognition</label>
+        </div>
+      </div>
+      <div class="w-field">
+        <label for="useCaseNotes">Describe your main AI use case in your own words</label>
+        <textarea id="useCaseNotes" rows="3" placeholder="e.g. We use an LLM to triage inbound customer support tickets and draft first-response replies for a human agent to review."></textarea>
+      </div>
+    </div>
+
+    <!-- Step 3: Data & oversight -->
+    <div class="wizard-step hidden" data-step="3">
+      <h2>Data, decisions &amp; oversight</h2>
+      <p class="step-sub">Step 3 of 5</p>
+      <div class="w-field">
+        <label>Do you use customer or personal data to train or fine-tune AI models?</label>
+        <div class="radio-row">
+          <label class="radio-pill"><input type="radio" name="trainData" value="no" checked /> No</label>
+          <label class="radio-pill"><input type="radio" name="trainData" value="yes" /> Yes</label>
+          <label class="radio-pill"><input type="radio" name="trainData" value="unsure" /> Unsure</label>
+        </div>
+      </div>
+      <div class="w-field">
+        <label>Is there human review before an AI-driven decision affecting a person is finalised?</label>
+        <div class="radio-row">
+          <label class="radio-pill"><input type="radio" name="humanReview" value="always" checked /> Always</label>
+          <label class="radio-pill"><input type="radio" name="humanReview" value="sometimes" /> Sometimes</label>
+          <label class="radio-pill"><input type="radio" name="humanReview" value="never" /> Never / not applicable</label>
+        </div>
+      </div>
+      <div class="w-field">
+        <label>Do you generate synthetic content (text, image, audio or video) that could be mistaken for human-created or real?</label>
+        <div class="radio-row">
+          <label class="radio-pill"><input type="radio" name="syntheticContent" value="no" checked /> No</label>
+          <label class="radio-pill"><input type="radio" name="syntheticContent" value="yes" /> Yes</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Vendors & existing docs -->
+    <div class="wizard-step hidden" data-step="4">
+      <h2>Vendors &amp; existing documentation</h2>
+      <p class="step-sub">Step 4 of 5</p>
+      <div class="w-field">
+        <label for="vendors">Which third-party AI tools or vendors do you rely on?</label>
+        <input type="text" id="vendors" placeholder="e.g. OpenAI, Anthropic, Microsoft Copilot, Google Gemini" />
+      </div>
+      <div class="w-field">
+        <label>Do you already have written AI policy documentation?</label>
+        <div class="radio-row">
+          <label class="radio-pill"><input type="radio" name="policyStatus" value="none" checked /> None</label>
+          <label class="radio-pill"><input type="radio" name="policyStatus" value="outdated" /> Something, but outdated</label>
+          <label class="radio-pill"><input type="radio" name="policyStatus" value="current" /> Yes, current</label>
+        </div>
+      </div>
+      <div class="w-field">
+        <label for="extraNotes">Anything else worth knowing?</label>
+        <textarea id="extraNotes" rows="3" placeholder="Optional — upcoming audits, specific customer requests, regulatory deadlines, etc."></textarea>
+      </div>
+    </div>
+
+    <!-- Step 5: Review -->
+    <div class="wizard-step hidden" data-step="5">
+      <h2>Review &amp; pay</h2>
+      <p class="step-sub">Step 5 of 5 — $199, secure checkout via Stripe</p>
+      <div id="reviewSummary" style="background:var(--paper-50);border:1px solid var(--line-200);border-radius:8px;padding:18px 20px;font-size:14px;color:var(--ink-700);margin-bottom:20px;"></div>
+      <p style="font-size:12.5px;color:var(--text-500);">
+        By continuing, you'll be redirected to Stripe's secure checkout. Your
+        governance pack is a first draft for internal review, not legal
+        advice — see the FAQ for details.
+      </p>
+    </div>
+
+    <p id="wizardError" class="wizard-error"></p>
+
+    <div class="wizard-nav">
+      <button id="btnBack" class="btn btn-ghost" disabled>Back</button>
+      <button id="btnNext" class="btn btn-primary">Continue</button>
+      <button id="btnPay" class="btn btn-gold btn-lg hidden">Pay $199 &amp; generate my pack</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/questionnaire.js"></script>
+</body>
+</html>

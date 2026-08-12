@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>Your AI Governance Pack — Rostroo</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/styles.css" />
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container nav">
+    <a href="index.html" class="brand">
+      <img src="assets/favicon.svg" alt="Rostroo" />
+      Rostroo
+    </a>
+    <nav class="links"></nav>
+    <span style="font-size:13px;color:var(--text-500);">Payment successful</span>
+  </div>
+</header>
+
+<div class="success-wrap">
+
+  <div id="statusProcessing" class="success-status">
+    <div class="spinner"></div>
+    <h2 style="color:var(--ink-950);">Generating your governance pack…</h2>
+    <p style="color:var(--text-500);">This usually takes 15–30 seconds. Don't close this tab.</p>
+  </div>
+
+  <div id="statusError" class="success-status hidden">
+    <h2 style="color:var(--ink-950);">Something went wrong generating your pack</h2>
+    <p style="color:var(--text-500);">Your payment went through, but pack generation hit an error. Contact <a href="mailto:hello@rostroo.com">hello@rostroo.com</a> with this reference and we'll get it to you directly:</p>
+    <p style="font-family:monospace;background:var(--paper-100);padding:10px 14px;border-radius:8px;display:inline-block;" id="errorToken"></p>
+  </div>
+
+  <div id="statusNotFound" class="success-status hidden">
+    <h2 style="color:var(--ink-950);">We couldn't find this session</h2>
+    <p style="color:var(--text-500);">If you just paid, refresh this page. Otherwise, contact <a href="mailto:hello@rostroo.com">hello@rostroo.com</a> and we'll sort it out.</p>
+  </div>
+
+  <div id="statusReady" class="pack-card hidden">
+    <div class="pack-actions">
+      <button id="btnDownloadMd" class="btn btn-ghost btn-sm">Download .md</button>
+      <button id="btnPrint" class="btn btn-primary btn-sm">Print / Save PDF</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--text-500);margin:0 0 20px;">
+      This is a first draft generated from your answers — review it with your own legal or compliance counsel before adopting it. A receipt has also been emailed to you by Stripe.
+    </p>
+
+    <div id="printHeader" class="print-header">
+      <div class="print-header-brand">
+        <img src="assets/favicon.svg" alt="" width="20" height="20" />
+        <span>Rostroo</span>
+      </div>
+      <h1>AI Governance &amp; Policy Pack</h1>
+      <div class="print-meta">
+        <div><strong>Company:</strong> <span id="printCompanyName">—</span></div>
+        <div><strong>Prepared:</strong> <span id="printDate">—</span></div>
+      </div>
+      <div class="print-confidential">First draft, AI-generated from self-reported answers. Not legal advice — for internal review prior to adoption.</div>
+    </div>
+
+    <div id="packContent" class="pack-content"></div>
+  </div>
+
+</div>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-bottom">
+      <span>© <span id="year"></span> Rostroo. All rights reserved.</span>
+      <span>hello@rostroo.com</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/success.js"></script>
+<script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
