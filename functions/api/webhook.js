@@ -30,6 +30,8 @@ export async function onRequestPost(context) {
     return json({ error: "Invalid payload" }, 400);
   }
 
+  console.log("Webhook received event", { type: event.type });
+
   if (event.type === "checkout.session.completed") {
     const session = event.data && event.data.object;
     const sessionToken =
@@ -37,6 +39,7 @@ export async function onRequestPost(context) {
       (session && session.metadata && session.metadata.sessionToken);
 
     if (sessionToken) {
+      console.log("Scheduling pack generation via waitUntil", { sessionToken });
       context.waitUntil(generateAndStorePack(env, sessionToken));
     } else {
       console.error("checkout.session.completed with no sessionToken — cannot generate pack");
@@ -49,23 +52,36 @@ export async function onRequestPost(context) {
 }
 
 async function generateAndStorePack(env, sessionToken) {
+  console.log("generateAndStorePack: starting", { sessionToken });
   try {
     // Idempotency: if we've already generated (or started) a pack for this
     // token — e.g. Stripe re-sent the webhook — don't do it twice.
     const existing = await env.ROSTROO_KV.get(packKey(sessionToken));
-    if (existing) return;
+    if (existing) {
+      console.log("generateAndStorePack: pack already exists, skipping", { sessionToken, existing });
+      return;
+    }
 
     await env.ROSTROO_KV.put(
       packKey(sessionToken),
       JSON.stringify({ status: "processing" }),
       { expirationTtl: 60 * 60 * 24 * 30 }
     );
+    console.log("generateAndStorePack: wrote processing status, fetching intake", { sessionToken });
 
     const stored = await env.ROSTROO_KV.get(intakeKey(sessionToken));
     if (!stored) throw new Error("No saved intake found for this session token");
     const { intake } = JSON.parse(stored);
+    console.log("generateAndStorePack: intake loaded, calling Anthropic", {
+      sessionToken,
+      companyName: intake.companyName,
+    });
 
     const markdown = await generateGovernancePack(env.ANTHROPIC_API_KEY, intake);
+    console.log("generateAndStorePack: Anthropic call succeeded", {
+      sessionToken,
+      markdownLength: markdown.length,
+    });
 
     await env.ROSTROO_KV.put(
       packKey(sessionToken),
@@ -77,8 +93,9 @@ async function generateAndStorePack(env, sessionToken) {
       }),
       { expirationTtl: 60 * 60 * 24 * 30 } // 30 days
     );
+    console.log("generateAndStorePack: wrote ready status", { sessionToken });
   } catch (e) {
-    console.error("Pack generation failed:", e.message);
+    console.error("Pack generation failed:", { sessionToken, message: e.message, stack: e.stack });
     await env.ROSTROO_KV.put(
       packKey(sessionToken),
       JSON.stringify({ status: "error", error: e.message }),

@@ -40,20 +40,33 @@ Use the company's actual name and sector throughout rather than generic placehol
 
   const userPrompt = buildUserPrompt(intake);
 
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-5",
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
+  console.log("generateGovernancePack: calling Anthropic API", {
+    hasApiKey: !!apiKey,
+    apiKeyLength: apiKey ? apiKey.length : 0,
   });
+
+  let resp;
+  try {
+    resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      }),
+    });
+  } catch (e) {
+    console.error("generateGovernancePack: fetch itself threw", { message: e.message, stack: e.stack });
+    throw new Error(`Network error calling Anthropic: ${e.message}`);
+  }
+
+  console.log("generateGovernancePack: got response", { status: resp.status, ok: resp.ok });
 
   if (!resp.ok) {
     let detail = "";
@@ -63,10 +76,15 @@ Use the company's actual name and sector throughout rather than generic placehol
     } catch (e) {
       detail = await resp.text();
     }
+    console.error("generateGovernancePack: Anthropic returned an error", { status: resp.status, detail });
     throw new Error(`Anthropic API error (${resp.status}): ${detail}`);
   }
 
   const data = await resp.json();
+  console.log("generateGovernancePack: parsed response body", {
+    stopReason: data.stop_reason,
+    contentBlocks: (data.content || []).length,
+  });
   return (data.content || [])
     .filter((block) => block.type === "text")
     .map((block) => block.text)
