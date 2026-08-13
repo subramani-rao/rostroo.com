@@ -2,7 +2,9 @@
 // Function, never in the browser — the API key stays in Cloudflare's
 // secret store and is never exposed to a customer.
 
-export async function generateGovernancePack(apiKey, intake) {
+export async function generateGovernancePack(apiKey, intake, onTrace) {
+  const trace = onTrace || (() => {});
+
   const systemPrompt = `You are a senior AI governance and compliance consultant drafting a first-DRAFT "AI Governance & Policy Pack" for a company, based on their self-reported answers to a guided questionnaire. A qualified human at the purchasing company (or their own legal/compliance counsel) will review this before it is adopted or shown to anyone else — you are not providing legal advice, and you should write with that framing in mind.
 
 Because this is a first draft generated from self-reported answers with no human consultant reviewing it before delivery:
@@ -40,7 +42,7 @@ Use the company's actual name and sector throughout rather than generic placehol
 
   const userPrompt = buildUserPrompt(intake);
 
-  console.log("generateGovernancePack: calling Anthropic API", {
+  await trace("generateGovernancePack: calling Anthropic API", {
     hasApiKey: !!apiKey,
     apiKeyLength: apiKey ? apiKey.length : 0,
   });
@@ -62,11 +64,11 @@ Use the company's actual name and sector throughout rather than generic placehol
       }),
     });
   } catch (e) {
-    console.error("generateGovernancePack: fetch itself threw", { message: e.message, stack: e.stack });
+    await trace("generateGovernancePack: fetch itself threw", { message: e.message, stack: e.stack });
     throw new Error(`Network error calling Anthropic: ${e.message}`);
   }
 
-  console.log("generateGovernancePack: got response", { status: resp.status, ok: resp.ok });
+  await trace("generateGovernancePack: got response", { status: resp.status, ok: resp.ok });
 
   if (!resp.ok) {
     let detail = "";
@@ -76,12 +78,12 @@ Use the company's actual name and sector throughout rather than generic placehol
     } catch (e) {
       detail = await resp.text();
     }
-    console.error("generateGovernancePack: Anthropic returned an error", { status: resp.status, detail });
+    await trace("generateGovernancePack: Anthropic returned an error", { status: resp.status, detail });
     throw new Error(`Anthropic API error (${resp.status}): ${detail}`);
   }
 
   const data = await resp.json();
-  console.log("generateGovernancePack: parsed response body", {
+  await trace("generateGovernancePack: parsed response body", {
     stopReason: data.stop_reason,
     contentBlocks: (data.content || []).length,
   });

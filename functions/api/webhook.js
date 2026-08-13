@@ -51,14 +51,38 @@ export async function onRequestPost(context) {
   return json({ received: true });
 }
 
+// Cloudflare's own log dashboard has been unreliable to depend on for this
+// (Pages projects don't expose an observability toggle in the dashboard UI
+// at all). So instead of relying solely on console.log, we also write a
+// running trail of what happened directly into KV — the one piece of this
+// stack we've already proven works end to end. GET /api/debug-pack?token=
+// reads it back. Safe to remove once the flow is fully working.
+function debugKey(token) {
+  return `debug:${token}`;
+}
+
+async function trace(env, sessionToken, step, extra) {
+  try {
+    const key = debugKey(sessionToken);
+    const existingRaw = await env.ROSTROO_KV.get(key);
+    const entries = existingRaw ? JSON.parse(existingRaw) : [];
+    entries.push({ t: new Date().toISOString(), step, ...extra });
+    await env.ROSTROO_KV.put(key, JSON.stringify(entries), { expirationTtl: 60 * 60 * 24 });
+  } catch (e) {
+    // Never let tracing itself break the real flow.
+    console.error("trace() failed:", e.message);
+  }
+  console.log(step, extra || {});
+}
+
 async function generateAndStorePack(env, sessionToken) {
-  console.log("generateAndStorePack: starting", { sessionToken });
+  await trace(env, sessionToken, "starting");
   try {
     // Idempotency: if we've already generated (or started) a pack for this
     // token — e.g. Stripe re-sent the webhook — don't do it twice.
     const existing = await env.ROSTROO_KV.get(packKey(sessionToken));
     if (existing) {
-      console.log("generateAndStorePack: pack already exists, skipping", { sessionToken, existing });
+      await trace(env, sessionToken, "pack already exists, skipping", { existing });
       return;
     }
 
@@ -67,19 +91,19 @@ async function generateAndStorePack(env, sessionToken) {
       JSON.stringify({ status: "processing" }),
       { expirationTtl: 60 * 60 * 24 * 30 }
     );
-    console.log("generateAndStorePack: wrote processing status, fetching intake", { sessionToken });
+    await trace(env, sessionToken, "wrote processing status, fetching intake");
 
     const stored = await env.ROSTROO_KV.get(intakeKey(sessionToken));
     if (!stored) throw new Error("No saved intake found for this session token");
     const { intake } = JSON.parse(stored);
-    console.log("generateAndStorePack: intake loaded, calling Anthropic", {
-      sessionToken,
+    await trace(env, sessionToken, "intake loaded, calling Anthropic", {
       companyName: intake.companyName,
     });
 
-    const markdown = await generateGovernancePack(env.ANTHROPIC_API_KEY, intake);
-    console.log("generateAndStorePack: Anthropic call succeeded", {
-      sessionToken,
+    const markdown = await generateGovernancePack(env.ANTHROPIC_API_KEY, intake, (step, extra) =>
+      trace(env, sessionToken, step, extra)
+    );
+    await trace(env, sessionToken, "Anthropic call succeeded", {
       markdownLength: markdown.length,
     });
 
@@ -93,9 +117,9 @@ async function generateAndStorePack(env, sessionToken) {
       }),
       { expirationTtl: 60 * 60 * 24 * 30 } // 30 days
     );
-    console.log("generateAndStorePack: wrote ready status", { sessionToken });
+    await trace(env, sessionToken, "wrote ready status");
   } catch (e) {
-    console.error("Pack generation failed:", { sessionToken, message: e.message, stack: e.stack });
+    await trace(env, sessionToken, "FAILED", { message: e.message, stack: e.stack });
     await env.ROSTROO_KV.put(
       packKey(sessionToken),
       JSON.stringify({ status: "error", error: e.message }),
