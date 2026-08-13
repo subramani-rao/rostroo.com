@@ -22,9 +22,10 @@
   function triggerGeneration(token) {
     // Fire this off but don't block the UI on it — poll() below will pick
     // up the result via KV regardless of whether this specific fetch
-    // succeeds, is interrupted by the tab closing, etc. This is now the
-    // PRIMARY way generation actually runs (see generate-pack.js); the
-    // Stripe webhook's background attempt is a backup only.
+    // succeeds, is interrupted by the tab closing, etc. This is the ONLY
+    // thing that triggers generation (see generate-pack.js) — the webhook
+    // just acknowledges Stripe and does nothing else, since its background
+    // attempts were proven unreliable during testing.
     fetch("/api/generate-pack", {
       method: "POST",
       headers: { "content-type": "application/json" },
