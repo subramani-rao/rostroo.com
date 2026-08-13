@@ -1,23 +1,24 @@
 import { json } from "../_lib/util.js";
 import { verifyStripeSignature } from "../_lib/stripe.js";
-import { generateAndStorePack } from "../_lib/generate.js";
 
 // POST /api/webhook
 // Stripe calls this directly (not the browser) when a payment event
 // happens. We verify the signature to make sure the request genuinely
-// came from Stripe, then — only on a successful payment — kick off pack
-// generation as a best-effort background attempt via waitUntil() and
-// acknowledge immediately, since Stripe expects a fast response.
+// came from Stripe, then acknowledge — Stripe expects a fast response and
+// will retry (marking the delivery "failed") if we don't answer quickly.
 //
-// This is now a BACKUP path, not the primary one: Cloudflare only gives
-// waitUntil()'d background work a short grace period (roughly 30 seconds)
-// after the response has been sent, which isn't reliably enough time for a
-// multi-document Claude generation call — it gets silently killed with no
-// error. The primary generation trigger is now the browser itself, calling
-// POST /api/generate-pack from success.html and awaiting it in the
-// foreground, which doesn't have that same limit. Both call the same
-// idempotent generateAndStorePack(), so whichever finishes first wins and
-// the other becomes a no-op.
+// This endpoint deliberately does NOT trigger pack generation anymore.
+// It used to, via context.waitUntil(), as a "backup" alongside the
+// browser's own foreground call to POST /api/generate-pack — but real
+// testing (see the trail in GET /api/debug-pack) proved that backup path
+// actively harmful: Cloudflare only gives waitUntil()'d background work a
+// short grace period after the response is sent, so the webhook's attempt
+// reliably got silently killed mid-call to Anthropic (no exception, the
+// isolate is just torn down) — but because it fired first and grabbed the
+// "in progress" lock in KV, it blocked the browser's reliable attempt from
+// ever running too. The browser calling POST /api/generate-pack directly
+// from success.html, in the foreground, is now the only generation
+// trigger, and it works reliably because it isn't subject to that limit.
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -40,21 +41,7 @@ export async function onRequestPost(context) {
 
   console.log("Webhook received event", { type: event.type });
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data && event.data.object;
-    const sessionToken =
-      (session && session.client_reference_id) ||
-      (session && session.metadata && session.metadata.sessionToken);
-
-    if (sessionToken) {
-      console.log("Scheduling pack generation via waitUntil (backup path)", { sessionToken });
-      context.waitUntil(generateAndStorePack(env, sessionToken, "webhook"));
-    } else {
-      console.error("checkout.session.completed with no sessionToken — cannot generate pack");
-    }
-  }
-
-  // Acknowledge quickly regardless of generation outcome — Stripe only
-  // needs to know we received the event.
+  // Nothing else to do here — generation is triggered by the browser
+  // (see api/generate-pack.js). We just need to acknowledge receipt.
   return json({ received: true });
 }
