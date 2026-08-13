@@ -19,9 +19,24 @@
     $("#packContent").innerHTML = highlighted;
   }
 
+  function triggerGeneration(token) {
+    // Fire this off but don't block the UI on it — poll() below will pick
+    // up the result via KV regardless of whether this specific fetch
+    // succeeds, is interrupted by the tab closing, etc. This is now the
+    // PRIMARY way generation actually runs (see generate-pack.js); the
+    // Stripe webhook's background attempt is a backup only.
+    fetch("/api/generate-pack", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: token }),
+    }).catch(function () {
+      // Ignore — poll() covers this either way.
+    });
+  }
+
   async function poll(token, attempt) {
     attempt = attempt || 0;
-    var MAX_ATTEMPTS = 40; // ~2 minutes at 3s intervals
+    var MAX_ATTEMPTS = 60; // ~3 minutes at 3s intervals
 
     let resp, data;
     try {
@@ -72,6 +87,7 @@
     }
 
     showOnly("statusProcessing");
+    triggerGeneration(token);
     poll(token, 0);
 
     $("#btnDownloadMd").addEventListener("click", function () {
