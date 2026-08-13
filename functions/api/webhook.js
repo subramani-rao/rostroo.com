@@ -48,7 +48,7 @@ export async function onRequestPost(context) {
 
     if (sessionToken) {
       console.log("Scheduling pack generation via waitUntil (backup path)", { sessionToken });
-      context.waitUntil(generateAndStorePack(env, sessionToken));
+      context.waitUntil(generateAndStorePack(env, sessionToken, "webhook"));
     } else {
       console.error("checkout.session.completed with no sessionToken — cannot generate pack");
     }

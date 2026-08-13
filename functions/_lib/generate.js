@@ -3,18 +3,23 @@ import { generateGovernancePack } from "./anthropic.js";
 
 // Shared pack-generation logic, called from two places:
 //  1. webhook.js, via context.waitUntil() — fired the moment Stripe confirms
-//     payment, as a best-effort background attempt.
+//     payment, as a best-effort background attempt. Cloudflare gives
+//     waitUntil()'d background work only a short grace period after a
+//     response has already been sent, which has been silently killing
+//     generation mid-flight for these longer, multi-document Claude calls —
+//     no exception is ever thrown, the isolate is just torn down.
 //  2. api/generate-pack.js, called directly (and awaited) by the browser on
-//     success.html — this is now the PRIMARY path. Cloudflare gives
-//     waitUntil()'d background work only a short grace period (roughly 30
-//     seconds) after a response has already been sent, which was silently
-//     killing generation mid-flight for these longer, multi-document Claude
-//     calls with no error ever being thrown — the isolate is torn down, not
-//     an exception. A normal foreground request (the browser actively
-//     waiting on this endpoint) doesn't have that same post-response grace
-//     period limit, so it reliably has enough time to finish.
-// Both calls are idempotent (guarded by the "does a pack already exist"
-// check below), so it's safe for both to fire for the same purchase.
+//     success.html — the PRIMARY, more reliable path, since it's a normal
+//     foreground request rather than backgrounded work.
+//
+// Both call this with a `source` tag so the debug trail (GET
+// /api/debug-pack) shows which one actually did the work. Whichever gets
+// there is guarded by an idempotency check below — but that check now
+// treats a "processing" status as stale (and safe to retry) if it's older
+// than STALE_AFTER_MS, so a webhook attempt that died silently doesn't
+// permanently block the browser's retry from ever running.
+
+const STALE_AFTER_MS = 25 * 1000;
 
 function debugKey(token) {
   return `debug:${token}`;
@@ -37,36 +42,50 @@ async function trace(env, sessionToken, step, extra) {
   console.log(step, extra || {});
 }
 
-export async function generateAndStorePack(env, sessionToken) {
-  await trace(env, sessionToken, "starting");
+export async function generateAndStorePack(env, sessionToken, source) {
+  await trace(env, sessionToken, "starting", { source });
   try {
-    // Idempotency: if we've already generated (or started) a pack for this
-    // token — e.g. both the webhook and the browser trigger this, or Stripe
-    // re-sends the webhook — don't do it twice.
-    const existing = await env.ROSTROO_KV.get(packKey(sessionToken));
-    if (existing) {
-      await trace(env, sessionToken, "pack already exists, skipping", { existing });
-      return JSON.parse(existing);
+    const existingRaw = await env.ROSTROO_KV.get(packKey(sessionToken));
+    if (existingRaw) {
+      const existing = JSON.parse(existingRaw);
+
+      // Ready or error are terminal — never redo finished work.
+      if (existing.status === "ready" || existing.status === "error") {
+        await trace(env, sessionToken, "pack already finished, returning it", { source, status: existing.status });
+        return existing;
+      }
+
+      // "processing" is only a reason to skip if it's recent — otherwise
+      // it's almost certainly a webhook attempt that got silently killed,
+      // and we should retry rather than defer to it forever.
+      const age = existing.startedAt ? Date.now() - new Date(existing.startedAt).getTime() : Infinity;
+      if (existing.status === "processing" && age < STALE_AFTER_MS) {
+        await trace(env, sessionToken, "another attempt is actively in progress, skipping", { source, ageMs: age });
+        return existing;
+      }
+      await trace(env, sessionToken, "found stale processing status, retrying anyway", { source, ageMs: age });
     }
 
     await env.ROSTROO_KV.put(
       packKey(sessionToken),
-      JSON.stringify({ status: "processing" }),
+      JSON.stringify({ status: "processing", startedAt: new Date().toISOString() }),
       { expirationTtl: 60 * 60 * 24 * 30 }
     );
-    await trace(env, sessionToken, "wrote processing status, fetching intake");
+    await trace(env, sessionToken, "wrote processing status, fetching intake", { source });
 
     const stored = await env.ROSTROO_KV.get(intakeKey(sessionToken));
     if (!stored) throw new Error("No saved intake found for this session token");
     const { intake } = JSON.parse(stored);
     await trace(env, sessionToken, "intake loaded, calling Anthropic", {
+      source,
       companyName: intake.companyName,
     });
 
     const markdown = await generateGovernancePack(env.ANTHROPIC_API_KEY, intake, (step, extra) =>
-      trace(env, sessionToken, step, extra)
+      trace(env, sessionToken, step, { source, ...extra })
     );
     await trace(env, sessionToken, "Anthropic call succeeded", {
+      source,
       markdownLength: markdown.length,
     });
 
@@ -80,10 +99,10 @@ export async function generateAndStorePack(env, sessionToken) {
     await env.ROSTROO_KV.put(packKey(sessionToken), JSON.stringify(result), {
       expirationTtl: 60 * 60 * 24 * 30, // 30 days
     });
-    await trace(env, sessionToken, "wrote ready status");
+    await trace(env, sessionToken, "wrote ready status", { source });
     return result;
   } catch (e) {
-    await trace(env, sessionToken, "FAILED", { message: e.message, stack: e.stack });
+    await trace(env, sessionToken, "FAILED", { source, message: e.message, stack: e.stack });
     const result = { status: "error", error: e.message };
     await env.ROSTROO_KV.put(packKey(sessionToken), JSON.stringify(result), {
       expirationTtl: 60 * 60 * 24 * 7,

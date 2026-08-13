@@ -38,6 +38,6 @@ export async function onRequestPost(context) {
     return json({ status: "not_found" }, 404);
   }
 
-  const result = await generateAndStorePack(env, token);
+  const result = await generateAndStorePack(env, token, "browser");
   return json(result);
 }
